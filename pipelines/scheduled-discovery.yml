@@ -1,0 +1,25 @@
+stages:
+  - discovery
+
+central-ssl-discovery:
+  stage: discovery
+  image: python:3.11-slim
+  before_script:
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install -r requirements.txt
+  script:
+    - source venv/bin/activate
+    - python scripts/discovery/discover_k8s.py > k8s.json || true
+    - python scripts/discovery/discover_tf.py > tf.json || true
+    - cat k8s.json tf.json | jq -s 'add | unique' > all_domains.json
+    - python scripts/ssl_cert_checker.py --hosts $(jq -r '.[]' all_domains.json) > cert-results.json
+    - python scripts/dashboards/prometheus.py cert-results.json || true
+    - python scripts/dashboards/cloudwatch.py cert-results.json || true
+    - python scripts/alerting/slack_alert.py cert-results.json || true
+    - python scripts/alerting/jira_alert.py cert-results.json || true
+  artifacts:
+    paths:
+      - cert-results.json
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'

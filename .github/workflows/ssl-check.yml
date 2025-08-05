@@ -1,0 +1,41 @@
+name: SSL Certificate Checker
+
+on:
+  schedule:
+    - cron: '0 5 * * 1' # Every Monday at 5am UTC
+  workflow_dispatch:     # Manual trigger
+  push:
+    branches:
+      - main
+
+jobs:
+  ssl-cert-check:
+    runs-on: ubuntu-latest
+
+    env:
+      PROVIDERS: "aws,azure"
+      AWS_REGION: "us-east-1"
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      JIRA_AUTH_BASIC: ${{ secrets.JIRA_AUTH_BASIC }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Run SSL Cert Check (Dynamic)
+        run: |
+          source venv/bin/activate
+          bash scripts/run_all.sh

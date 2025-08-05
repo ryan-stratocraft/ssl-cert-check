@@ -1,0 +1,14 @@
+.ssl-check:
+  stage: ssl-check
+  image: python:3.11-slim
+  before_script:
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install -r requirements.txt
+  script:
+    - source venv/bin/activate
+    - bash scripts/run_all.sh
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" || $CI_COMMIT_BRANCH == "main"'
+  variables:
+    PROVIDERS: "tf,k8s,aws"
