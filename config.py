@@ -3,68 +3,89 @@ from typing import List, Optional
 
 class SSLConfig:
     """Centralized configuration for SSL certificate checker"""
-    
+
     # Provider Configuration
-    PROVIDERS = os.getenv('SSL_PROVIDERS', 'k8s,tf').split(',')
-    
+    PROVIDERS = os.getenv('SSL_PROVIDERS', '').split(',')
+
     # AWS Configuration
     AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
     AWS_ACCOUNT_ID = os.getenv('AWS_ACCOUNT_ID')
-    
+
     # Azure Configuration
     AZURE_SUBSCRIPTION_ID = os.getenv('AZURE_SUBSCRIPTION_ID')
     AZURE_TENANT_ID = os.getenv('AZURE_TENANT_ID')
-    
+
     # GCP Configuration
     GCP_PROJECT = os.getenv('GCP_PROJECT')
     GCP_REGION = os.getenv('GCP_REGION', 'us-central1')
-    
+
     # Terraform Configuration
     TF_STATE_BUCKET = os.getenv('TF_STATE_BUCKET')
     TF_STATE_KEY = os.getenv('TF_STATE_KEY', 'terraform.tfstate')
-    
+
     # Kubernetes Configuration
     K8S_CONTEXT = os.getenv('K8S_CONTEXT', 'default')
-    
+
     # SSL Check Configuration
     SSL_THRESHOLD_DAYS = int(os.getenv('SSL_THRESHOLD_DAYS', '30'))
     SSL_CHECK_TIMEOUT = int(os.getenv('SSL_CHECK_TIMEOUT', '10'))
-    
+
     # Monitoring Configuration
     PROMETHEUS_PUSHGATEWAY = os.getenv('PROMETHEUS_PUSHGATEWAY')
     CLOUDWATCH_NAMESPACE = os.getenv('CLOUDWATCH_NAMESPACE', 'SSLChecker')
-    
+
     # Alerting Configuration
     SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL')
     JIRA_URL = os.getenv('JIRA_URL')
     JIRA_AUTH_BASIC = os.getenv('JIRA_AUTH_BASIC')
     JIRA_PROJECT_KEY = os.getenv('JIRA_PROJECT_KEY', 'CERT')
-    
+
     # Pipeline Configuration
     PIPELINE_MODE = os.getenv('PIPELINE_MODE', 'scheduled')  # 'scheduled' or 'deployment'
     FAIL_ON_EXPIRY = os.getenv('FAIL_ON_EXPIRY', 'true').lower() == 'true'
-    
+
     @classmethod
     def validate(cls) -> List[str]:
-        """Validate required configuration and return list of missing variables"""
         missing = []
-        
-        # Validate providers
+
         for provider in cls.PROVIDERS:
-            if provider == 'aws' and not cls.AWS_ACCOUNT_ID:
-                missing.append('AWS_ACCOUNT_ID')
-            elif provider == 'azure' and not cls.AZURE_SUBSCRIPTION_ID:
-                missing.append('AZURE_SUBSCRIPTION_ID')
-            elif provider == 'gcp' and not cls.GCP_PROJECT:
-                missing.append('GCP_PROJECT')
-            elif provider == 'tf' and not cls.TF_STATE_BUCKET:
-                missing.append('TF_STATE_BUCKET')
-        
+            provider = provider.strip().lower()
+            if provider == 'aws':
+                if not cls.AWS_ACCOUNT_ID:
+                    missing.append('AWS_ACCOUNT_ID')
+                if not os.getenv('AWS_ACCESS_KEY_ID'):
+                    missing.append('AWS_ACCESS_KEY_ID')
+                if not os.getenv('AWS_SECRET_ACCESS_KEY'):
+                    missing.append('AWS_SECRET_ACCESS_KEY')
+            elif provider == 'azure':
+                if not cls.AZURE_SUBSCRIPTION_ID:
+                    missing.append('AZURE_SUBSCRIPTION_ID')
+                if not cls.AZURE_TENANT_ID:
+                    missing.append('AZURE_TENANT_ID')
+            elif provider == 'gcp':
+                if not cls.GCP_PROJECT:
+                    missing.append('GCP_PROJECT')
+                if not cls.GCP_REGION:
+                    missing.append('GCP_REGION')
+                if not os.getenv('GCP_CREDENTIALS_JSON'):
+                    missing.append('GCP_CREDENTIALS_JSON')
+            elif provider == 'tf':
+                if not cls.TF_STATE_BUCKET:
+                    missing.append('TF_STATE_BUCKET')
+            elif provider == 'k8s':
+                if not cls.K8S_CONTEXT:
+                    missing.append('K8S_CONTEXT')
+
+        if cls.PIPELINE_MODE == 'scheduled':
+            if not cls.SLACK_WEBHOOK_URL:
+                missing.append('SLACK_WEBHOOK_URL')
+            if not cls.JIRA_AUTH_BASIC:
+                missing.append('JIRA_AUTH_BASIC')
+
         return missing
-    
+
     @classmethod
     def get_provider_config(cls, provider: str) -> dict:
-        """Get configuration for specific provider"""
         configs = {
             'aws': {
                 'region': cls.AWS_REGION,
@@ -87,3 +108,10 @@ class SSLConfig:
             }
         }
         return configs.get(provider, {})
+
+    @classmethod
+    def describe(cls) -> None:
+        print("Selected Providers:", cls.PROVIDERS)
+        print("Missing config:", cls.validate())
+        for provider in cls.PROVIDERS:
+            print(f"{provider} config:", cls.get_provider_config(provider))
