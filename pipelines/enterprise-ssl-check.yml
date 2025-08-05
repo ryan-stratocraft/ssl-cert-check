@@ -1,0 +1,124 @@
+# Enterprise SSL Certificate Check Pipeline
+# Include this in your .gitlab-ci.yml or use as a template
+
+# Variables that organizations need to set:
+# Required for all providers:
+#   SSL_PROVIDERS: "k8s,tf,aws"  # Comma-separated list of providers to check
+#   SSL_THRESHOLD_DAYS: "30"     # Days before expiry to alert
+#   PIPELINE_MODE: "deployment"  # "scheduled" or "deployment"
+#   FAIL_ON_EXPIRY: "true"       # Whether to fail pipeline on expiring certs
+
+# AWS Configuration:
+#   AWS_REGION: "eu-west-1"
+#   AWS_ACCOUNT_ID: "123456789012"
+#   AWS_ACCESS_KEY_ID: "your-access-key"
+#   AWS_SECRET_ACCESS_KEY: "your-secret-key"
+
+# Azure Configuration:
+#   AZURE_SUBSCRIPTION_ID: "your-subscription-id"
+#   AZURE_TENANT_ID: "your-tenant-id"
+#   AZURE_CLIENT_ID: "your-client-id"
+#   AZURE_CLIENT_SECRET: "your-client-secret"
+
+# GCP Configuration:
+#   GCP_PROJECT: "your-project-id"
+#   GCP_REGION: "us-central1"
+#   GOOGLE_APPLICATION_CREDENTIALS: "path/to/service-account.json"
+
+# Terraform Configuration:
+#   TF_STATE_BUCKET: "your-terraform-state-bucket"
+#   TF_STATE_KEY: "path/to/terraform.tfstate"
+
+# Kubernetes Configuration:
+#   K8S_CONTEXT: "default"
+#   KUBECONFIG: "path/to/kubeconfig"
+
+# Monitoring Configuration:
+#   PROMETHEUS_PUSHGATEWAY: "http://prometheus-pushgateway:9091"
+#   CLOUDWATCH_NAMESPACE: "SSLChecker"
+
+# Alerting Configuration:
+#   SLACK_WEBHOOK_URL: "https://hooks.slack.com/services/..."
+#   JIRA_URL: "https://your-jira.atlassian.net"
+#   JIRA_AUTH_BASIC: "base64-encoded-user:token"
+#   JIRA_PROJECT_KEY: "CERT"
+
+.ssl-check-base:
+  image: python:3.11-slim
+  before_script:
+    - apt-get update && apt-get install -y jq curl
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install -r requirements.txt
+  after_script:
+    - echo "SSL check completed"
+  artifacts:
+    reports:
+      junit: ssl-check-report.xml
+    paths:
+      - cert-results.json
+      - ssl-check-report.xml
+    expire_in: 1 week
+
+# Pre-deployment SSL check (run before feature deployments)
+ssl-check-pre-deployment:
+  extends: .ssl-check-base
+  stage: ssl-check
+  script:
+    - source venv/bin/activate
+    - export PIPELINE_MODE="deployment"
+    - export FAIL_ON_EXPIRY="true"
+    - python scripts/ssl_check_runner.py
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  variables:
+    PIPELINE_MODE: "deployment"
+    FAIL_ON_EXPIRY: "true"
+
+# Scheduled SSL check (run weekly)
+ssl-check-scheduled:
+  extends: .ssl-check-base
+  stage: ssl-check
+  script:
+    - source venv/bin/activate
+    - export PIPELINE_MODE="scheduled"
+    - export FAIL_ON_EXPIRY="false"
+    - python scripts/ssl_check_runner.py
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $SSL_CHECK_TYPE == "scheduled"'
+  variables:
+    PIPELINE_MODE: "scheduled"
+    FAIL_ON_EXPIRY: "false"
+
+# Production deployment check (run before main branch deployments)
+ssl-check-production:
+  extends: .ssl-check-base
+  stage: ssl-check
+  script:
+    - source venv/bin/activate
+    - export PIPELINE_MODE="deployment"
+    - export FAIL_ON_EXPIRY="true"
+    - python scripts/ssl_check_runner.py
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $SSL_CHECK_TYPE == "production"'
+  variables:
+    PIPELINE_MODE: "deployment"
+    FAIL_ON_EXPIRY: "true"
+
+# Manual SSL check (for testing)
+ssl-check-manual:
+  extends: .ssl-check-base
+  stage: ssl-check
+  script:
+    - source venv/bin/activate
+    - export PIPELINE_MODE="manual"
+    - export FAIL_ON_EXPIRY="false"
+    - python scripts/ssl_check_runner.py
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $SSL_CHECK_TYPE == "manual"'
+  variables:
+    PIPELINE_MODE: "manual"
+    FAIL_ON_EXPIRY: "false"
