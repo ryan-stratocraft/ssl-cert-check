@@ -1,24 +1,41 @@
 import boto3
 import json
 import sys
+import os
 
-STATE_BUCKET = "your-terraform-state-bucket"
-STATE_KEY = "path/to/terraform.tfstate"
+# Import configuration
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from config import SSLConfig
 
-s3 = boto3.client('s3')
+def discover_tf_domains():
+    try:
+        if not SSLConfig.TF_STATE_BUCKET:
+            print("TF_STATE_BUCKET not configured", file=sys.stderr)
+            return []
+        
+        s3 = boto3.client('s3', region_name=SSLConfig.AWS_REGION)
+        state_file = s3.get_object(Bucket=SSLConfig.TF_STATE_BUCKET, Key=SSLConfig.TF_STATE_KEY)['Body'].read()
+        state_json = json.loads(state_file)
+        
+        domains = []
+        for resource in state_json.get('resources', []):
+            if resource['type'] == 'aws_acm_certificate':
+                for instance in resource['instances']:
+                    attributes = instance.get('attributes', {})
+                    domain_name = attributes.get('domain_name')
+                    if domain_name:
+                        domains.append({
+                            "hostname": domain_name,
+                            "source": "terraform",
+                            "resource_type": resource['type'],
+                            "resource_name": resource['name']
+                        })
+        
+        return domains
+    except Exception as e:
+        print(f"Error retrieving Terraform state: {e}", file=sys.stderr)
+        return []
 
-try:
-    state_file = s3.get_object(Bucket=STATE_BUCKET, Key=STATE_KEY)['Body'].read()
-    state_json = json.loads(state_file)
-    cert_domains = []
-
-    for resource in state_json.get('resources', []):
-        if resource['type'] == 'aws_acm_certificate':
-            for instance in resource['instances']:
-                attributes = instance.get('attributes', {})
-                cert_domains.append(attributes.get('domain_name'))
-
-    print(json.dumps(cert_domains))
-except Exception as e:
-    print(f"Error retrieving Terraform state: {e}")
-    sys.exit(1)
+if __name__ == '__main__':
+    domains = discover_tf_domains()
+    print(json.dumps(domains))
