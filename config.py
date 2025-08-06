@@ -1,6 +1,14 @@
 import os
 from typing import List, Optional
 
+# Load .sslchecker.env (primary) and .env (fallback) if present
+try:
+    from dotenv import load_dotenv
+    load_dotenv('.sslchecker.env', override=True)
+    load_dotenv('.env', override=False)
+except ImportError:
+    pass
+
 class SSLConfig:
     """Centralized configuration for SSL certificate checker"""
     

@@ -260,13 +260,25 @@ ssl-check:
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
-## 🤝 Contributing
+## 🤝 Contributing & PR Process
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+If you are proposing changes to the universal wrapper (`run.sh`), config loading (`config.py`), or peripheral integration:
+
+1. **Fork the repo and create a feature branch.**
+2. **Make your changes.**
+   - For `run.sh`, ensure it works with `.sslchecker.env`, `.env`, and CLI args.
+   - For `config.py`, ensure it loads config from all sources and is robust to missing values.
+   - For peripheral integration, test with a sample `.sslchecker.env` in a test repo.
+3. **Test locally and in a CI pipeline (GitHub Actions, GitLab CI, or Azure DevOps).**
+   - Use the example pipeline steps above.
+   - Check that config is loaded and echoed as expected.
+4. **Open a Pull Request.**
+   - Describe what you changed and why.
+   - Reference this section if you are improving universal integration.
+5. **Review and merge.**
+   - PRs will be reviewed for robustness, clarity, and cross-platform compatibility.
+
+---
 
 ## 📞 Support
 
