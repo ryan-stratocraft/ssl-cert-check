@@ -199,6 +199,63 @@ export DEBUG=true
 python scripts/ssl_check_runner.py
 ```
 
+## 🏗️ How to Use in Your Own Repo (Peripheral Integration)
+
+### 1. Create a `.sslchecker.env` file in your repo:
+
+```
+# .sslchecker.env
+SSL_PROVIDERS=aws,tf
+AWS_REGION=eu-west-1
+TF_STATE_BUCKET=mybucket
+ENABLE_ALERTS=true
+ENABLE_DASHBOARDS=true
+```
+
+You can also use a `.env` file as a fallback for local development.
+
+### 2. Add the SSL checker as a submodule or reference in your pipeline
+
+- **GitHub Actions**: Use `run.sh` as your job step
+- **GitLab CI**: Use `run.sh` in your job script
+- **Azure DevOps**: Use a bash step to call `./run.sh ssl-check`
+
+### 3. Example pipeline step
+
+**GitHub Actions**
+```yaml
+- name: Run SSL Cert Check
+  run: |
+    chmod +x ./run.sh
+    ./run.sh ssl-check
+```
+
+**GitLab CI**
+```yaml
+ssl-check:
+  stage: test
+  script:
+    - chmod +x ./run.sh
+    - ./run.sh ssl-check
+```
+
+**Azure DevOps**
+```yaml
+- script: |
+    chmod +x ./run.sh
+    ./run.sh ssl-check
+  displayName: 'Run SSL Cert Check'
+```
+
+### 4. Debugging
+
+- The script will echo the final config it uses for debugging.
+- If you want to override any variable, set it in `.sslchecker.env`, `.env`, or as a CLI argument.
+
+### 5. Output
+
+- Results and logs will be placed in the directory specified by `OUTPUT_DIR` (default: `./output`).
+
 ## 📝 License
 
 MIT License - see [LICENSE](LICENSE) file for details.
