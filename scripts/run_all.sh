@@ -1,53 +1,45 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-PROVIDERS=${PROVIDERS:-"tf,k8s"}
+PROVIDERS=${1:-${PROVIDERS:-"tf,k8s"}}
+OUTPUT_DIR=${OUTPUT_DIR:-"./output"}
+ENABLE_ALERTS=${ENABLE_ALERTS:-true}
+ENABLE_DASHBOARDS=${ENABLE_DASHBOARDS:-true}
 
-> all_domains.json
+mkdir -p "$OUTPUT_DIR"
+ALL_DOMAINS="$OUTPUT_DIR/all_domains.json"
+UNIQUE_DOMAINS="$OUTPUT_DIR/unique_domains.json"
+CERT_RESULTS="$OUTPUT_DIR/cert-results.json"
 
-for provider in $(echo $PROVIDERS | tr ',' '\n'); do
+> "$ALL_DOMAINS"
+
+for provider in $(echo "$PROVIDERS" | tr ',' '\n'); do
   case "$provider" in
-    tf)
-      echo "Running Terraform discovery..."
-      python scripts/discovery/discover_tf.py > tf.json || true
-      cat tf.json >> all_domains.json
-      ;;
-    k8s)
-      echo "Running K8s discovery..."
-      python scripts/discovery/discover_k8s.py > k8s.json || true
-      cat k8s.json >> all_domains.json
-      ;;
-    aws)
-      echo "Running AWS discovery..."
-      python scripts/discovery/discover_aws.py > aws.json || true
-      cat aws.json >> all_domains.json
-      ;;
-    azure)
-      echo "Running Azure discovery..."
-      python scripts/discovery/discover_azure.py > azure.json || true
-      cat azure.json >> all_domains.json
-      ;;
-    gcp)
-      echo "Running GCP discovery..."
-      python scripts/discovery/discover_gcp.py > gcp.json || true
-      cat gcp.json >> all_domains.json
+    tf|k8s|aws|azure|gcp)
+      echo "Running $provider discovery..."
+      python "scripts/discovery/discover_${provider}.py" > "$OUTPUT_DIR/${provider}.json" || true
+      cat "$OUTPUT_DIR/${provider}.json" >> "$ALL_DOMAINS"
       ;;
     *)
-      echo "Unknown provider: $provider"
+      echo "⚠️ Unknown provider: $provider"
       ;;
   esac
 done
 
 echo "Deduplicating domains..."
-jq -s 'add | unique_by(.hostname)' all_domains.json > unique_domains.json
+jq -s 'add | unique_by(.hostname)' "$ALL_DOMAINS" > "$UNIQUE_DOMAINS"
 
 echo "Running SSL cert check..."
-python scripts/ssl_cert_checker.py --hosts $(jq -r '.[].hostname' unique_domains.json) > cert-results.json
+python scripts/ssl_cert_checker.py --hosts "$(jq -r '.[].hostname' "$UNIQUE_DOMAINS")" > "$CERT_RESULTS"
 
-echo "Pushing to dashboards..."
-python scripts/dashboards/prometheus.py cert-results.json || true
-python scripts/dashboards/cloudwatch.py cert-results.json || true
+if [ "$ENABLE_DASHBOARDS" = "true" ]; then
+  echo "Pushing to dashboards..."
+  python scripts/dashboards/prometheus.py "$CERT_RESULTS" || true
+  python scripts/dashboards/cloudwatch.py "$CERT_RESULTS" || true
+fi
 
-echo "Sending alerts..."
-python scripts/alerting/slack_alert.py cert-results.json || true
-python scripts/alerting/jira_alert.py cert-results.json || true
+if [ "$ENABLE_ALERTS" = "true" ]; then
+  echo "Sending alerts..."
+  python scripts/alerting/slack_alert.py "$CERT_RESULTS" || true
+  python scripts/alerting/jira_alert.py "$CERT_RESULTS" || true
+fi

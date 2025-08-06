@@ -199,6 +199,7 @@ export DEBUG=true
 python scripts/ssl_check_runner.py
 ```
 
+
 ## 🏗️ How to Use in Your Own Repo (Peripheral Integration)
 
 ### 1. Create a `.sslchecker.env` file in your repo:
@@ -256,9 +257,11 @@ ssl-check:
 
 - Results and logs will be placed in the directory specified by `OUTPUT_DIR` (default: `./output`).
 
+
 ## 📝 License
 
 MIT License - see [LICENSE](LICENSE) file for details.
+
 
 ## 🤝 Contributing & PR Process
 
@@ -278,7 +281,14 @@ If you are proposing changes to the universal wrapper (`run.sh`), config loading
 5. **Review and merge.**
    - PRs will be reviewed for robustness, clarity, and cross-platform compatibility.
 
----
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
 
 ## 📞 Support
 
