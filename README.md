@@ -199,9 +199,87 @@ export DEBUG=true
 python scripts/ssl_check_runner.py
 ```
 
+
+## 🏗️ How to Use in Your Own Repo (Peripheral Integration)
+
+### 1. Create a `.sslchecker.env` file in your repo:
+
+```
+# .sslchecker.env
+SSL_PROVIDERS=aws,tf
+AWS_REGION=eu-west-1
+TF_STATE_BUCKET=mybucket
+ENABLE_ALERTS=true
+ENABLE_DASHBOARDS=true
+```
+
+You can also use a `.env` file as a fallback for local development.
+
+### 2. Add the SSL checker as a submodule or reference in your pipeline
+
+- **GitHub Actions**: Use `run.sh` as your job step
+- **GitLab CI**: Use `run.sh` in your job script
+- **Azure DevOps**: Use a bash step to call `./run.sh ssl-check`
+
+### 3. Example pipeline step
+
+**GitHub Actions**
+```yaml
+- name: Run SSL Cert Check
+  run: |
+    chmod +x ./run.sh
+    ./run.sh ssl-check
+```
+
+**GitLab CI**
+```yaml
+ssl-check:
+  stage: test
+  script:
+    - chmod +x ./run.sh
+    - ./run.sh ssl-check
+```
+
+**Azure DevOps**
+```yaml
+- script: |
+    chmod +x ./run.sh
+    ./run.sh ssl-check
+  displayName: 'Run SSL Cert Check'
+```
+
+### 4. Debugging
+
+- The script will echo the final config it uses for debugging.
+- If you want to override any variable, set it in `.sslchecker.env`, `.env`, or as a CLI argument.
+
+### 5. Output
+
+- Results and logs will be placed in the directory specified by `OUTPUT_DIR` (default: `./output`).
+
+
 ## 📝 License
 
 MIT License - see [LICENSE](LICENSE) file for details.
+
+
+## 🤝 Contributing & PR Process
+
+If you are proposing changes to the universal wrapper (`run.sh`), config loading (`config.py`), or peripheral integration:
+
+1. **Fork the repo and create a feature branch.**
+2. **Make your changes.**
+   - For `run.sh`, ensure it works with `.sslchecker.env`, `.env`, and CLI args.
+   - For `config.py`, ensure it loads config from all sources and is robust to missing values.
+   - For peripheral integration, test with a sample `.sslchecker.env` in a test repo.
+3. **Test locally and in a CI pipeline (GitHub Actions, GitLab CI, or Azure DevOps).**
+   - Use the example pipeline steps above.
+   - Check that config is loaded and echoed as expected.
+4. **Open a Pull Request.**
+   - Describe what you changed and why.
+   - Reference this section if you are improving universal integration.
+5. **Review and merge.**
+   - PRs will be reviewed for robustness, clarity, and cross-platform compatibility.
 
 ## 🤝 Contributing
 
@@ -210,6 +288,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 3. Make your changes
 4. Add tests if applicable
 5. Submit a pull request
+
 
 ## 📞 Support
 
