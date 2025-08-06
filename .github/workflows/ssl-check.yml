@@ -56,7 +56,7 @@ jobs:
       - name: Debug Inputs (Optional)
         run: |
           source venv/bin/activate
-          python -c 'from scripts.config import SSLConfig; print("Providers:", SSLConfig.PROVIDERS); print("Missing:", SSLConfig.validate())'
+          python -c 'from config import SSLConfig; print("Providers:", SSLConfig.PROVIDERS); print("Missing:", SSLConfig.validate())'
 
       - name: Run SSL Cert Checker
         run: |
